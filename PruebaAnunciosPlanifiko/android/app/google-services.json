@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "329600917340",
+    "project_id": "planifiko-prod",
+    "storage_bucket": "planifiko-prod.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:329600917340:android:548a8709eb5e002f09eb99",
+        "android_client_info": {
+          "package_name": "com.economuchik.app_muchik"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAnVFUMB2EgON3wvp_OeVcVkUoqUMHYFVQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

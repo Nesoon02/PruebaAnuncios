@@ -1,0 +1,231 @@
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:intl/intl.dart';
+import 'package:app_muchik/config/constants.dart';
+import '../services/account_service.dart';
+import '../services/movement_service.dart';
+import '../services/report_service.dart';
+import '../models/report_data.dart';
+
+class BalanceCard extends StatefulWidget {
+  const BalanceCard({super.key});
+
+  @override
+  State<BalanceCard> createState() => _BalanceCardState();
+}
+
+class _BalanceCardState extends State<BalanceCard> {
+  double _saldoActual = 0.0;
+  double _ingresosTotales = 0.0;
+  double _gastosTotales = 0.0;
+  bool _isLoading = true;
+  String? _accessToken;
+  int? _selectedAccountId;
+
+  // Definimos los colores oficiales
+  final Color cPetrolBlue = const Color(0xFF264653);
+  final Color cMintGreen = const Color(0xFF2A9D8F);
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchData();
+  }
+
+  Future<void> _fetchData() async {
+    final prefs = await SharedPreferences.getInstance();
+    _accessToken = prefs.getString('accessToken');
+    _selectedAccountId = prefs.getInt('idCuenta');
+
+    if (_accessToken == null || _selectedAccountId == null) {
+      if (mounted) setState(() => _isLoading = false);
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      // 🔹 Obtener cuenta desde AccountService (cache)
+      final accountData = await AccountService().getAccount(
+        accountId: _selectedAccountId!,
+        token: _accessToken!,
+      );
+
+      // 🔹 Obtener movimientos desde ReportsService (cache)
+      final reportData = await ReportService().fetchReports(
+        month: DateTime.now().month,
+        year: DateTime.now().year,
+      );
+
+
+      final totalBalance =
+          double.tryParse(accountData['cuenta']['saldo_actual'].toString()) ?? 0.0;
+
+      final totalIngresos = reportData.summary.ingresos;
+      final totalGastos = reportData.summary.gastos;
+
+      if (mounted) {
+        setState(() {
+          _saldoActual = totalBalance;
+          _ingresosTotales = totalIngresos;
+          _gastosTotales = totalGastos;
+        });
+      }
+    } catch (e) {
+      if (mounted) print('Excepción al cargar el saldo: $e');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // ✅ CAMBIO REALIZADO: Locale 'en_US' asegura coma en miles y punto en decimales
+    final currencyFormatter = NumberFormat.currency(
+      locale: 'en_US',
+      symbol: 'S/ ',
+      decimalDigits: 2,
+    );
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [cPetrolBlue, cMintGreen],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: cPetrolBlue.withOpacity(0.3),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: _isLoading
+          ? const Center(
+        child: Padding(
+          padding: EdgeInsets.all(24.0),
+          child: CircularProgressIndicator(color: Colors.white),
+        ),
+      )
+          : Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Saldo Disponible',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              fontFamily: 'Poppins',
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            currencyFormatter.format(_saldoActual),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 32,
+              fontWeight: FontWeight.bold,
+              fontFamily: 'Poppins',
+            ),
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.arrow_downward, color: Colors.white, size: 12),
+                        ),
+                        const SizedBox(width: 6),
+                        const Text(
+                          'Ingresos',
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: 12,
+                            fontFamily: 'Poppins',
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      currencyFormatter.format(_ingresosTotales),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        fontFamily: 'Poppins',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                height: 30,
+                width: 1,
+                color: Colors.white.withOpacity(0.2),
+                margin: const EdgeInsets.symmetric(horizontal: 10),
+              ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.arrow_upward, color: Colors.white, size: 12),
+                        ),
+                        const SizedBox(width: 6),
+                        const Text(
+                          'Gastos',
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: 12,
+                            fontFamily: 'Poppins',
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      currencyFormatter.format(_gastosTotales),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        fontFamily: 'Poppins',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
